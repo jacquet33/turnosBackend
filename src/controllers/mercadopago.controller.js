@@ -42,6 +42,9 @@ async function createPreference(req, res) {
         unit_price:  selectedPlan.price,
         currency_id: 'USD',
       }],
+      payment_methods: {
+        installments: 1,
+      },
       payer: {
         email: req.user.email,
       },
