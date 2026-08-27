@@ -13,11 +13,19 @@ app.use(helmet());
 
 // ── Seguridad: CORS estricto ──────────────────────────────────────────────
 app.use(cors({
-  origin: [
-    process.env.FRONTEND_URL || 'http://localhost:5173',
-    'https://turnreserved.com',
-    'https://www.turnreserved.com',
-  ],
+  origin: function (origin, callback) {
+    const allowed = [
+      process.env.FRONTEND_URL || 'http://localhost:5173',
+      'https://turnreserved.com',
+      'https://www.turnreserved.com',
+    ];
+    // Mobile apps send no Origin header (origin === undefined) — allow them
+    if (!origin || allowed.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 
