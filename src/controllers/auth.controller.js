@@ -204,4 +204,79 @@ async function me(req, res) {
   }
 }
 
-module.exports = { register, login, me };
+async function googleAuth(req, res) {
+  try {
+    const { credential } = req.body;
+    if (!credential)
+      return res.status(400).json({ error: 'Token de Google requerido' });
+
+    // Decode the Google JWT (header.payload.signature)
+    const parts = credential.split('.');
+    if (parts.length !== 3)
+      return res.status(400).json({ error: 'Token de Google inválido' });
+
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
+
+    const { email, sub: googleId, name, email_verified } = payload;
+    if (!email || !email_verified)
+      return res.status(400).json({ error: 'Email de Google no verificado' });
+
+    // Check if user already exists
+    const [existing] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+
+    let user;
+    if (existing.length) {
+      user = existing[0];
+    } else {
+      // Create new user with Google — no password, trial plan
+      const trialEnd = new Date();
+      trialEnd.setDate(trialEnd.getDate() + 5);
+
+      const [result] = await db.query(
+        `INSERT INTO users (email, phone, password_hash, plan, subscription_status, trial_ends_at, max_services)
+         VALUES (?, '', ?, 'trial', 'trial', ?, 1)`,
+        [email, `google:${googleId}`, trialEnd]
+      );
+
+      const [newRows] = await db.query('SELECT * FROM users WHERE id = ?', [result.insertId]);
+      user = newRows[0];
+
+      // Welcome email (non-blocking)
+      try {
+        const { Resend } = require('resend');
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        await resend.emails.send({
+          from: 'Alejandro de TurnReserved <contact@turnreserved.com>',
+          to: [email],
+          subject: `Bienvenido a TurnReserved, ${name || email.split('@')[0]} 👋`,
+          html: `<div style="font-family:sans-serif;padding:24px;color:#333"><h1>Bienvenido a TurnReserved</h1><p>Tenés 5 días de prueba gratuita.</p><a href="https://turnreserved.com">Ir a mi panel →</a></div>`,
+        });
+      } catch (_) {}
+    }
+
+    const token = jwt.sign(
+      { id: user.id.toString(), email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    );
+
+    return res.json({
+      token,
+      user: {
+        id:                 user.id.toString(),
+        email:              user.email,
+        phone:              user.phone,
+        plan:               user.plan,
+        subscriptionStatus: user.subscription_status,
+        trialEndsAt:        user.trial_ends_at,
+        subscriptionEndsAt: user.subscription_ends_at,
+        maxServices:        user.max_services,
+      },
+    });
+  } catch (err) {
+    console.error('Google auth error:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+module.exports = { register, login, me, googleAuth };

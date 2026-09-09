@@ -16,6 +16,7 @@ const contactCtrl = require('../controllers/contact.controller');
 router.post('/auth/register', authCtrl.register);
 router.post('/auth/login',    authCtrl.login);
 router.get ('/auth/me',       authenticate, authCtrl.me);
+router.post('/auth/google',  authCtrl.googleAuth);
 
 // ── Suscripción ───────────────────────────────────────────────────────────
 router.get ('/subscription/status',            authenticate, mpCtrl.getStatus);
