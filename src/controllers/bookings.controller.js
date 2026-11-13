@@ -5,7 +5,7 @@ const { buildScheduleResponse } = require('./schedule.controller');
 
 async function getBookingPage(req, res) {
   try {
-    const [svcs] = await db.query('SELECT id, name FROM services WHERE link_id = ?', [req.params.linkId]);
+    const [svcs] = await db.query('SELECT id, name, min_advance_hours FROM services WHERE link_id = ?', [req.params.linkId]);
     if (!svcs.length) return res.status(404).json({ error: 'Servicio no encontrado' });
 
     const service = svcs[0];
@@ -18,7 +18,7 @@ async function getBookingPage(req, res) {
     );
 
     return res.json({
-      service: { id: service.id.toString(), name: service.name },
+      service: { id: service.id.toString(), name: service.name, minAdvanceHours: service.min_advance_hours ?? 24 },
       schedule,
       dayConfig,
       bookedSlots: pending.map(b => ({
