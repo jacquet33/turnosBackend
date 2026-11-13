@@ -10,6 +10,7 @@ const mpCtrl       = require('../controllers/mercadopago.controller');
 const { authenticate }                       = require('../middlewares/auth');
 const { checkSubscription, checkServiceLimit } = require('../middlewares/subscription');
 const contactCtrl = require('../controllers/contact.controller');
+const exploreCtrl = require('../controllers/explore.controller');
 
 
 // ── Auth ──────────────────────────────────────────────────────────────────
@@ -47,5 +48,16 @@ router.delete('/bookings/:id',        authenticate, checkSubscription, bookingsC
 router.get   ('/clients',             authenticate, checkSubscription, bookingsCtrl.listClients);
 
 router.post('/contact', contactCtrl.sendContact);
+
+// ── Directorio público para la app (modo cliente, sin auth) ───────────────
+router.get('/explore',                     exploreCtrl.search);
+router.get('/explore/categories',          exploreCtrl.categories);
+router.get('/explore/cities',              exploreCtrl.cities);
+router.get('/explore/reverse',             exploreCtrl.reverse);
+router.get('/explore/business/:publicId',  exploreCtrl.business);
+
+// ── Perfil público del negocio (dueño logueado) ───────────────────────────
+router.get('/profile', authenticate, exploreCtrl.getProfile);
+router.put('/profile', authenticate, exploreCtrl.updateProfile);
 
 module.exports = router;

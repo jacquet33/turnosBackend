@@ -36,6 +36,17 @@ const generalLimiter = rateLimit({
   message: { error: 'Demasiadas solicitudes. Intentá de nuevo en 15 minutos.' },
   standardHeaders: true,
   legacyHeaders: false,
+  // El mapa de la app pide resultados al mover/zoomear: tiene su propio límite
+  skip: (req) => req.path.startsWith('/explore'),
+});
+
+// ── Rate limiting del buscador público: 600 requests por 15 minutos por IP ─
+const exploreLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 600,
+  message: { error: 'Demasiadas búsquedas. Esperá unos minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 // ── Rate limiting estricto para login: 10 intentos por 15 minutos por IP ──
@@ -63,6 +74,7 @@ app.use('/api/auth/login',    loginLimiter);
 app.use('/api/auth/register', registerLimiter);
 
 // Rate limiting general al resto de la API
+app.use('/api/explore', exploreLimiter);
 app.use('/api', generalLimiter);
 
 app.use('/api', routes);
